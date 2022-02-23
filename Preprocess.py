@@ -107,7 +107,7 @@ def main():
     app = zivid.Application()
     camera = app.create_file_camera(args.zivid_camera_file)
     settings = zivid.Settings(acquisitions=[zivid.Settings.Acquisition()])
-    frame = camera.capture(settings)
+    #frame = camera.capture(settings)
 
     datasetFolder = args.dir
 
@@ -168,7 +168,7 @@ def main():
     t = time.localtime()
     current_time = time.strftime("%H%M", t)
 
-    shutil.make_archive(f"{args.dataset_output_name}_{str(date.today())}_{str(current_time)}",'zip',"./saveFolder")
+    shutil.make_archive(f"{args.dataset_output_name}_ss_{args.subsample}_colors_{args.include_color}_normals_{args.include_normals}_{str(date.today())}_{str(current_time)}",'zip',"./saveFolder")
     shutil.rmtree("./saveFolder")
 
 
