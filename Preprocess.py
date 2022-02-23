@@ -23,11 +23,14 @@ def readZividPCD(framefile,subsample):
     return xyz, rgba, normals
 
 
-def saveZividPcdAsNpz(savedir,savename,framefile,normVectorSave = False, save_color=False, subsample = None):
+def saveZividPcdAsNpz(savedir,savename,framefile,normVectorSave = False, save_color=False, subsample = None,scale_to_meters = True):
     if not os.path.exists(savedir):
         os.mkdir(savedir)
 
     xyz,rgba,normals = readZividPCD(framefile=framefile,subsample=subsample)
+
+    if scale_to_meters:
+        xyz = xyz/1000
 
     if  normVectorSave and save_color:
         np.savez_compressed(os.path.join(savedir,savename),
@@ -96,6 +99,7 @@ def main():
     parser.add_argument("--dataset_output_name",type=str,default="ZividDataset")
     parser.add_argument("--train_file_name",type= str, default="trainZivid.txt")
     parser.add_argument("--val_file_name",type= str, default="valZivid.txt")
+    parser.add_argument("--scale_to_meters", type=bool,default=True)
 
     args = parser.parse_args()    
 
@@ -130,7 +134,7 @@ def main():
         f = open(os.path.join("./savefolder",str(dir)+"_all.txt"),"x")
         for file in files:
             print(file)
-            saveZividPcdAsNpz("./saveFolder",f"{dir}_{i}",os.path.join(datasetFolder, dir, file),normVectorSave=args.include_normals, save_color=args.include_color,subsample=args.subsample)
+            saveZividPcdAsNpz("./saveFolder",f"{dir}_{i}",os.path.join(datasetFolder, dir, file),normVectorSave=args.include_normals, save_color=args.include_color,subsample=args.subsample,scale_to_meters = args.scale_to_meters)
             f.write(f"{dir}_{i}\n")
             i += 1
         f.close()
