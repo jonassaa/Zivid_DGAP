@@ -197,7 +197,6 @@ def main():
             usedElements = []
             for element1 in listFileContents1:
                 for element2 in listFileContents1:
-                    #print(element2)
                     if element1 == element2 or len(element1)<2 or len(element2)<2 or usedElements.__contains__(element1) or usedElements.__contains__(element2) :
                         None
                     else:
@@ -214,8 +213,6 @@ def main():
     if not args.no_compress:
         shutil.make_archive(f"{args.dataset_output_name}_ss_{args.subsample}_colors_{args.include_color}_normals_{args.include_normals}_{str(date.today())}_{str(current_time)}",'zip',outputFolder)
         shutil.rmtree(outputFolder)
-
-
 
 
 
