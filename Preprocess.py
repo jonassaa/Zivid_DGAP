@@ -1,4 +1,3 @@
-from multiprocessing.dummy import JoinableQueue
 import numpy as np
 import argparse 
 from os import path, walk
@@ -170,12 +169,10 @@ def main():
         f = open(os.path.join(outputFolder,str(dir)+"_all.txt"),"x")
         for file in files:
 
-            print(file)
 
             if args.zivid:
                 saveZividPcdAsNpz(outputFolder,f"{dir}_{i}",os.path.join(datasetFolder, dir, file),normVectorSave=args.include_normals, save_color=args.include_color,subsample=args.subsample,scale_to_meters = args.scale_to_meters)
             else:
-                print("netcdf")
                 saveZividPcdAsNpzNetCDF(outputFolder,f"{dir}_{i}",os.path.join(datasetFolder, dir, file),scale_to_meters = args.scale_to_meters)
             
             f.write(f"{dir}_{i}\n")
