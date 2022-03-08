@@ -1,13 +1,21 @@
+from multiprocessing.dummy import JoinableQueue
 import numpy as np
 import argparse 
-from os import walk
+from os import path, walk
 import os
-import zivid
 import shutil
 from datetime import date
 import time
 import random
+import netCDF4
 
+def loadPointCloudFromZivid(pcd):
+    zividPointCloud = netCDF4.Dataset(pcd,'a', format = "NETCDF4")
+    return np.reshape(np.asarray(zividPointCloud["data/pointcloud"]),(1920*1200,3))
+
+def loadRGBFromZivid(pcd):
+    zividPointCloud = netCDF4.Dataset(pcd,'a', format = "NETCDF4")
+    return np.reshape(np.asarray(zividPointCloud["data/rgba_image"])[:,:,0:3],(1920*1200,3))
 
 def readZividPCD(framefile,subsample):
     frame = zivid.frame.Frame(framefile)
@@ -53,6 +61,22 @@ def saveZividPcdAsNpz(savedir,savename,framefile,normVectorSave = False, save_co
         np.savez_compressed(os.path.join(savedir,savename),
                             pcd = xyz.reshape(np.shape(xyz)[0]*np.shape(xyz)[1],3))
 
+def saveZividPcdAsNpzNetCDF(savedir,savename,framefile, save_color=False,scale_to_meters = True):
+    
+    
+    xyz = loadPointCloudFromZivid(framefile)
+    if scale_to_meters:
+        xyz=xyz/1000
+    rgb = loadRGBFromZivid(framefile)
+
+    if save_color:
+        np.savez_compressed(os.path.join(savedir,savename),
+                            pcd = xyz,
+                            rgb = rgb)
+    else:
+        np.savez(os.path.join(savedir,savename),
+                            pcd = xyz)
+         
 
 def testZividSaveLoad():
     #TODO test saving and loading a zivid file usingsaveZividPcdAsNpz()
@@ -100,14 +124,19 @@ def main():
     parser.add_argument("--train_file_name",type= str, default="trainZivid.txt")
     parser.add_argument("--val_file_name",type= str, default="valZivid.txt")
     parser.add_argument("--scale_to_meters", type=bool,default=True)
+    parser.add_argument("--zivid", type=bool,default=False)
+    parser.add_argument("--no_compress", type = bool, default=False)
 
     args = parser.parse_args()    
 
-    # Connecting ZividFileCamera
-    app = zivid.Application()
-    camera = app.create_file_camera(args.zivid_camera_file)
-    settings = zivid.Settings(acquisitions=[zivid.Settings.Acquisition()])
-    #frame = camera.capture(settings)
+
+    if args.zivid:
+        import zivid
+        # Connecting ZividFileCamera
+        app = zivid.Application()
+        camera = app.create_file_camera(args.zivid_camera_file)
+        settings = zivid.Settings(acquisitions=[zivid.Settings.Acquisition()])
+        #frame = camera.capture(settings)
 
     datasetFolder = args.dir
 
@@ -121,34 +150,48 @@ def main():
     for (dirpath, dirnames, filenames) in walk(datasetFolder):
         directories.extend(dirnames)
 
-    if os.path.exists("./savefolder"):
-        shutil.rmtree("./savefolder")
-    os.makedirs("./savefolder")
 
-    splitTrainVal(directories,os.path.join("./savefolder",args.train_file_name), os.path.join("./savefolder",args.val_file_name), args.val_fraction)
+    if args.no_compress:
+        outputFolder = args.dataset_output_name
+    else:
+        outputFolder = outputFolder
+    
+
+    if os.path.exists(outputFolder):
+        shutil.rmtree(outputFolder)
+    os.makedirs(outputFolder)
+
+    splitTrainVal(directories,os.path.join(outputFolder,args.train_file_name), os.path.join(outputFolder,args.val_file_name), args.val_fraction)
 
     for dir in directories:
         print(f"\nNow processing files in {os.path.join(datasetFolder,dir)}")
         files = os.listdir(os.path.join(datasetFolder,dir))
         i = 0
-        f = open(os.path.join("./savefolder",str(dir)+"_all.txt"),"x")
+        f = open(os.path.join(outputFolder,str(dir)+"_all.txt"),"x")
         for file in files:
+
             print(file)
-            saveZividPcdAsNpz("./saveFolder",f"{dir}_{i}",os.path.join(datasetFolder, dir, file),normVectorSave=args.include_normals, save_color=args.include_color,subsample=args.subsample,scale_to_meters = args.scale_to_meters)
+
+            if args.zivid:
+                saveZividPcdAsNpz(outputFolder,f"{dir}_{i}",os.path.join(datasetFolder, dir, file),normVectorSave=args.include_normals, save_color=args.include_color,subsample=args.subsample,scale_to_meters = args.scale_to_meters)
+            else:
+                print("netcdf")
+                saveZividPcdAsNpzNetCDF(outputFolder,f"{dir}_{i}",os.path.join(datasetFolder, dir, file),scale_to_meters = args.scale_to_meters)
+            
             f.write(f"{dir}_{i}\n")
             i += 1
         f.close()
     #Create .txt files
     
-    filesInSaveFolder = os.listdir("./savefolder")
+    filesInSaveFolder = os.listdir(outputFolder)
     for file in filesInSaveFolder:
         if file.__contains__(".txt"):
             name = file.split("_all.")
 
-            listFile = open(f"./savefolder/{file}","r")
+            listFile = open(f"{os.path.join(outputFolder,file)}","r")
             listFileContents = listFile.read().split("\n")
 
-            pairFile = open(f"./savefolder/{name[0]}.txt","x")
+            pairFile = open(f"{os.path.join(outputFolder,name[0])}.txt","x")
             
             listFileContents1 = listFileContents
             usedElements = []
@@ -168,8 +211,9 @@ def main():
     t = time.localtime()
     current_time = time.strftime("%H%M", t)
 
-    shutil.make_archive(f"{args.dataset_output_name}_ss_{args.subsample}_colors_{args.include_color}_normals_{args.include_normals}_{str(date.today())}_{str(current_time)}",'zip',"./saveFolder")
-    shutil.rmtree("./saveFolder")
+    if not args.no_compress:
+        shutil.make_archive(f"{args.dataset_output_name}_ss_{args.subsample}_colors_{args.include_color}_normals_{args.include_normals}_{str(date.today())}_{str(current_time)}",'zip',outputFolder)
+        shutil.rmtree(outputFolder)
 
 
 
