@@ -15,5 +15,5 @@ python Preprocess.py    --dir path/to/zivid/files \
                         --no_compress False 
 ```
 
-Note that if the --zivid flag is set to False (as by default) the program will ignore subsampling and normals as it is not vailable without the zivid SDK.
+Note that if the --zivid flag is set to False (as by default) the program will ignore subsampling and normals as it is not available without the zivid SDK.
 
